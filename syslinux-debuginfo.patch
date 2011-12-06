@@ -1,0 +1,53 @@
+From 34047bef6781db1c932c25b442589f2063b9e656 Mon Sep 17 00:00:00 2001
+From: Peter Jones <pjones@redhat.com>
+Date: Wed, 14 Apr 2010 15:03:37 -0400
+Subject: [PATCH] Don't strip binaries.
+
+---
+ linux/Makefile  |    2 +-
+ mtools/Makefile |    2 +-
+ utils/Makefile  |    2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/linux/Makefile b/linux/Makefile
+index 8872c0f..1557330 100644
+--- a/linux/Makefile
++++ b/linux/Makefile
+@@ -20,7 +20,7 @@ include $(topdir)/MCONFIG
+ OPTFLAGS = -g -Os
+ INCLUDES = -I. -I.. -I../libinstaller
+ CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
+-LDFLAGS	 = -s
++LDFLAGS	 =
+ 
+ SRCS     = syslinux.c \
+            ../libinstaller/syslxmod.c \
+diff --git a/mtools/Makefile b/mtools/Makefile
+index 91b6852..caf27f7 100644
+--- a/mtools/Makefile
++++ b/mtools/Makefile
+@@ -4,7 +4,7 @@ include $(topdir)/MCONFIG
+ OPTFLAGS = -g -Os
+ INCLUDES = -I. -I.. -I../libfat -I../libinstaller
+ CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
+-LDFLAGS	 = -s
++LDFLAGS	 =
+ 
+ SRCS     = syslinux.c \
+ 	   ../libinstaller/syslxmod.c \
+diff --git a/utils/Makefile b/utils/Makefile
+index 7fdf631..bf37a6b 100644
+--- a/utils/Makefile
++++ b/utils/Makefile
+@@ -18,7 +18,7 @@ topdir = ..
+ include $(topdir)/MCONFIG
+ 
+ CFLAGS   = $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+-LDFLAGS  = -O2 -s
++LDFLAGS  = -O2
+ 
+ TARGETS	 = mkdiskimage isohybrid gethostip
+ ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi \
+-- 
+1.7.0.1
+
