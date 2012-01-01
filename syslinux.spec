@@ -1,13 +1,12 @@
 Summary: Simple kernel loader which boots from a FAT filesystem
 Name: syslinux
-Version: 3.86
-%define tarball_version 3.86
-Release: 1.1%{?dist}
+Version: 4.02
+%define tarball_version 4.02
+Release: 4%{?dist}
 License: GPLv2+
 Group: Applications/System
-URL: http://syslinux.zytor.com/
-Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{tarball_version}.tar.bz2
-Patch0: syslinux-debuginfo.patch
+URL: http://syslinux.zytor.com/wiki/index.php/The_Syslinux_Project
+Source0: http://www.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{tarball_version}.tar.bz2
 ExclusiveArch: %{ix86} x86_64
 Buildroot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: nasm >= 0.98.38-1, perl, netpbm-progs
@@ -31,9 +30,40 @@ filesystems, Linux ext2/ext3 filesystems (EXTLINUX), PXE network boots
 (PXELINUX), or ISO 9660 CD-ROMs (ISOLINUX).  It also includes a tool,
 MEMDISK, which loads legacy operating systems from these media.
 
+%package perl
+Summary: Syslinux tools written in perl
+Group: Applications/System
+
+%description perl
+Syslinux tools written in perl
+
+%package devel
+Summary: Headers and libraries for syslinux development.
+Group: Development/Libraries
+
+%description devel
+Headers and libraries for syslinux development.
+
+%package extlinux
+Summary: The EXTLINUX bootloader, for booting the local system.
+Group: System/Boot
+Requires: syslinux
+
+%description extlinux
+The EXTLINUX bootloader, for booting the local system, as well as all
+the SYSLINUX/PXELINUX modules in /boot.
+
+%package tftpboot
+Summary: SYSLINUX modules in /tftpboot, available for network booting
+Group: Applications/Internet
+Requires: syslinux
+
+%description tftpboot
+All the SYSLINUX/PXELINUX modules directly available for network
+booting in the /tftpboot directory.
+
 %prep
 %setup -q -n syslinux-%{tarball_version}
-%patch0 -p1 -b .nostrip
 
 %build
 CFLAGS="-Werror -Wno-unused -finline-limit=2000"
@@ -52,29 +82,37 @@ mkdir -p %{buildroot}%{_prefix}/lib/syslinux
 mkdir -p %{buildroot}%{_includedir}
 make install-all \
 	INSTALLROOT=%{buildroot} BINDIR=%{_bindir} SBINDIR=%{_sbindir} \
-       	LIBDIR=%{_prefix}/lib INCDIR=%{_includedir} MANDIR=%{_mandir} DATADIR=%{_datadir} 
+       	LIBDIR=%{_prefix}/lib DATADIR=%{_datadir} \
+	MANDIR=%{_mandir} INCDIR=%{_includedir} \
+	TFTPBOOT=/tftpboot EXTLINUXDIR=/boot/extlinux
 
 mkdir -p %{buildroot}/%{_docdir}/%{name}-%{version}/sample
 install -m 644 sample/sample.* %{buildroot}/%{_docdir}/%{name}-%{version}/sample/
+mkdir -p %{buildroot}/etc
+( cd %{buildroot}/etc && ln -s ../boot/extlinux/extlinux.conf . )
 
 # don't ship libsyslinux, at least, not for now
 rm -f %{buildroot}%{_prefix}/lib/libsyslinux*
 rm -f %{buildroot}%{_includedir}/syslinux.h
 
-# don't want this for now...
-rm -rf %{buildroot}/boot %{buildroot}/tftpboot
+mkdir -p %{buildroot}/%{_libdir}/syslinux/com32/
+mv %{buildroot}/%{_datadir}/syslinux/com32/*.a %{buildroot}/%{_libdir}/syslinux/com32/
 
 %clean
 rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%doc NEWS README* TODO COPYING 
+%doc NEWS README* COPYING 
 %doc doc/* 
 %doc sample
-%{_mandir}/man*/*
-%{_bindir}/*
-%{_sbindir}/extlinux
+%{_mandir}/man1/gethostip*
+%{_mandir}/man1/syslinux*
+%{_mandir}/man1/extlinux*
+%{_bindir}/gethostip
+%{_bindir}/isohybrid
+%{_bindir}/memdiskfind
+%{_bindir}/syslinux
 %dir %{_datadir}/syslinux
 %{_datadir}/syslinux/*.com
 %{_datadir}/syslinux/*.exe
@@ -82,10 +120,68 @@ rm -rf %{buildroot}
 %{_datadir}/syslinux/*.bin
 %{_datadir}/syslinux/*.0
 %{_datadir}/syslinux/memdisk
+%dir %{_datadir}/syslinux/dosutil
+%{_datadir}/syslinux/dosutil/*
+
+%files perl
+%defattr(-,root,root)
+%{_mandir}/man1/lss16toppm*
+%{_mandir}/man1/ppmtolss16*
+%{_mandir}/man1/syslinux2ansi*
+%{_bindir}/keytab-lilo
+%{_bindir}/lss16toppm
+%{_bindir}/md5pass
+%{_bindir}/mkdiskimage
+%{_bindir}/ppmtolss16
+%{_bindir}/pxelinux-options
+%{_bindir}/sha1pass
+%{_bindir}/syslinux2ansi
+%{_bindir}/isohybrid.pl
+
+%files devel
+%defattr(-,root,root)
+%dir %{_datadir}/syslinux/com32
 %{_datadir}/syslinux/com32
-%{_datadir}/syslinux/dosutil
+%dir %{_libdir}/syslinux/com32
+%{_libdir}/syslinux/com32
+
+%files extlinux
+%{_sbindir}/extlinux
+/boot/extlinux
+%config /etc/extlinux.conf
+
+%files tftpboot
+/tftpboot
+
+%post extlinux
+# If we have a /boot/extlinux.conf file, assume extlinux is our bootloader
+# and update it.
+if [ -f /boot/extlinux/extlinux.conf ]; then \
+	extlinux --update /boot/extlinux ; \
+elif [ -f /boot/extlinux.conf ]; then \
+	mkdir -p /boot/extlinux && \
+	mv /boot/extlinux.conf /boot/extlinux/extlinux.conf && \
+	extlinux --update /boot/extlinux ; \
+fi
 
 %changelog
+* Fri Jan 14 2011 Peter Jones <pjones@redhat.com> - 4.02-4
+- Fix minor multilib problems.
+
+* Fri Jan 14 2011 Peter Jones <pjones@redhat.com> - 4.02-3
+- Update RHEL 6 to syslinux 4
+  Resolves: rhbz#622346
+
+* Fri Aug 20 2010 Matt Domsch <mdomsch@fedoraproject.org> - 4.02-2
+- add perl subpackage, move perl apps there
+
+* Fri Aug 06 2010 Peter Jones <pjones@redhat.com> - 4.02-2
+- Split out extlinux and tftpboot.
+- remove duplicate syslinux/com32/ left in base package after 3.83-2
+
+* Thu Aug 05 2010 Peter Jones <pjones@redhat.com> - 4.02-1
+- Update to 4.02
+
 * Wed Apr 14 2010 Peter Jones <pjones@redhat.com> - 3.86-1.1
 - Update to 3.86
   Resolves: rhbz#570496
